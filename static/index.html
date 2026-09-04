@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mage-VL Video Chat</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #4f8cff;
+    --accent-hover: #6b9fff;
+    --ok: #3fb96f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header span { color: var(--muted); font-size: 13px; }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 16px;
+    padding: 16px 24px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button, label.btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover, label.btn:hover { background: var(--accent-hover); }
+  button:disabled { background: #3a4050; cursor: not-allowed; }
+  button.secondary { background: #333945; }
+  button.secondary:hover { background: #3f4654; }
+  input[type="file"] { display: none; }
+  video {
+    width: 100%;
+    max-height: 420px;
+    background: #000;
+    border-radius: 8px;
+    display: block;
+  }
+  .hint { color: var(--muted); font-size: 12px; margin: 8px 0; }
+  /* captured frame canvas with crop selection */
+  .canvas-wrap { position: relative; margin-top: 8px; user-select: none; }
+  canvas#frameCanvas {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+    background: #000;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .sel-box {
+    position: absolute;
+    border: 2px dashed #ffd24d;
+    background: rgba(255, 210, 77, .15);
+    pointer-events: none;
+    display: none;
+  }
+  textarea, input[type="number"], select {
+    width: 100%;
+    background: #10131a;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  select { width: auto; padding: 6px 8px; }
+  textarea { resize: vertical; min-height: 90px; }
+  .row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .row label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  input[type="number"] { width: 90px; }
+  #answer {
+    margin-top: 12px;
+    padding: 12px;
+    background: #10131a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    min-height: 48px;
+  }
+  .status {
+    font-size: 12px;
+    margin-top: 8px;
+    color: var(--muted);
+  }
+  .status.ok { color: var(--ok); }
+  .status.err { color: #ff6b6b; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    background: #2c3242;
+    color: var(--muted);
+    margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mage-VL Video Chat</h1>
+  <span>打开视频 → 截取当前帧（可框选局部）→ 输入 prompt 推理</span>
+</header>
+
+<div class="layout">
+  <!-- 左侧：视频 + 截帧 -->
+  <div class="panel">
+    <h2>1. 打开媒体</h2>
+    <div class="toolbar">
+      <label class="btn">打开视频<input type="file" id="videoFile" accept="video/*"></label>
+      <label class="btn secondary">打开图片<input type="file" id="imageFile" accept="image/*"></label>
+      <button id="btnReset" class="secondary">清空</button>
+    </div>
+
+    <div id="videoSection">
+      <video id="video" controls></video>
+      <div class="toolbar" style="margin-top:12px">
+        <button id="btnCapture">📷 截取当前帧</button>
+      </div>
+      <p class="hint">播放/拖动到目标画面后点击截帧；也可直接上传图片跳过视频步骤。</p>
+      <h2 style="margin-top:16px">整段 / 区间视频推理设置 <span class="badge" id="videoInfo">未选择视频</span></h2>
+      <div id="metaPanel" style="display:none; margin:10px 0; padding:12px; background:#10131a; border:1px solid var(--border); border-radius:8px; font-size:13px; line-height:1.9">
+        <div style="display:grid; grid-template-columns:auto 1fr auto 1fr; column-gap:14px; row-gap:2px">
+          <b>文件</b><span id="mFilename" style="word-break:break-all"></span>
+          <b>大小</b><span id="mSize"></span>
+          <b>容器</b><span id="mContainer"></span>
+          <b>编码</b><span id="mCodec"></span>
+          <b>分辨率</b><span id="mRes"></span>
+          <b>像素格式</b><span id="mPixFmt"></span>
+          <b>帧率</b><span id="mFps"></span>
+          <b>总帧数</b><span id="mFrames"></span>
+          <b>时长</b><span id="mDuration"></span>
+          <b>码率</b><span id="mBitrate"></span>
+          <b>音频</b><span id="mAudio"></span>
+          <b>区间帧数</b><span id="mCutFrames" style="color:#ffd24d"></span>
+        </div>
+      </div>
+      <p class="hint">选择视频后，用右侧 <b>🎬 视频推理</b> 按钮对整段或所选区间推理（不依赖截帧）。</p>
+      <div class="row" style="flex-wrap:wrap">
+        <label>后端
+          <select id="backend" style="margin-left:6px">
+            <option value="codec" selected>codec（默认）</option>
+            <option value="frames">frames（均匀采样）</option>
+          </select>
+        </label>
+        <label>引擎
+          <select id="codecEngine" style="margin-left:6px">
+            <option value="neural" selected>neural（DCVC-RT）</option>
+            <option value="traditional">traditional（HEVC）</option>
+          </select>
+        </label>
+        <label>帧数 <input type="number" id="numFrames" value="32" min="1" max="128" style="width:70px;margin-left:6px"></label>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <label>推理区间（秒）</label>
+        <input type="number" id="cutStart" placeholder="起" step="0.1" min="0" style="width:80px">
+        <span style="align-self:center">→</span>
+        <input type="number" id="cutEnd" placeholder="止" step="0.1" min="0" style="width:80px">
+        <button id="btnMarkStart" class="secondary" title="把当前播放位置设为起点">⏮ 起点=当前</button>
+        <button id="btnMarkEnd" class="secondary" title="把当前播放位置设为终点">⏭ 终点=当前</button>
+        <button id="btnPreviewCut" class="secondary" title="预览所选区间">▶ 预览区间</button>
+        <button id="btnClearCut" class="secondary" title="清空区间，推理整段">清空区间</button>
+      </div>
+      <p class="hint">填写区间（或播放到目标位置后点“起点/终点=当前”）则只推理该时间段；留空推理整段。
+        codec 后端对应 <code>--video-backend codec</code>（引擎可选 neural DCVC-RT / traditional HEVC）；
+        frames 后端对应均匀采样。不依赖浏览器解码能力。</p>
+    </div>
+
+    <h2 style="margin-top:16px">2. 截取的帧 <span class="badge" id="frameInfo">未截取</span></h2>
+    <div class="canvas-wrap">
+      <canvas id="frameCanvas" width="960" height="540"></canvas>
+      <div class="sel-box" id="selBox"></div>
+    </div>
+    <p class="hint">在图片上拖动鼠标可框选一个区域（黄色虚线框）；推理时只发送框选部分。再次点击框内可重选，点击“清除框选”使用整帧。</p>
+    <div class="toolbar" style="margin-top:8px">
+      <button id="btnClearSel" class="secondary">清除框选（使用整帧）</button>
+    </div>
+  </div>
+
+  <!-- 右侧：prompt + 推理 -->
+  <div class="panel">
+    <h2>3. 提问</h2>
+    <textarea id="prompt" placeholder="例如：描述这个画面里的内容 / 这段代码在做什么？"></textarea>
+    <div class="row">
+      <label for="maxNewTokens">max_new_tokens</label>
+      <input type="number" id="maxNewTokens" value="256" min="1" max="4096">
+    </div>
+    <div class="row">
+      <button id="btnInfer" style="flex:1">🖼 单帧推理（截取的帧/框选区域）</button>
+    </div>
+    <div class="row">
+      <button id="btnVideoInfer" style="flex:1">🎬 视频推理（整段或所选区间，服务端处理）</button>
+    </div>
+    <div class="status" id="status">等待操作…</div>
+    <h2 style="margin-top:20px">推理结果</h2>
+    <div id="answer">-</div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const video = $("video");
+const canvas = $("frameCanvas");
+const ctx = canvas.getContext("2d");
+const selBox = $("selBox");
+const statusEl = $("status");
+
+let hasFrame = false;           // canvas 里有截取的帧/图片
+let selection = null;           // {x,y,w,h}（canvas 像素坐标）
+let dragging = false, dragStart = null;
+let objectUrl = null;
+
+function setStatus(text, cls = "") {
+  statusEl.textContent = text;
+  statusEl.className = "status " + cls;
+}
+
+function drawFrame() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#1a1d24";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (hasFrame && canvas._img) ctx.drawImage(canvas._img, 0, 0, canvas.width, canvas.height);
+}
+
+function setFrameFromSource(source, w, h, label) {
+  canvas.width = w;
+  canvas.height = h;
+  canvas._img = source;
+  hasFrame = true;
+  clearSelection();
+  drawFrame();
+  $("frameInfo").textContent = `${label} (${w}×${h})`;
+  setStatus(`已加载${label} ${w}×${h}`);
+}
+
+// ---- 打开视频：上传一次拿 id，后续截帧/预览/推理都复用（不重复上传）----
+let videoId = null;          // /api/upload 返回的文件 id
+let videoMeta = null;        // 元数据
+let previewRetrying = false; // 防止 error 事件重复触发转码
+
+async function handleVideoFile(file) {
+  if (!file) return;
+  // 先播本地文件预览；不行再走 /api/preview 转码
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl = URL.createObjectURL(file);
+  video.src = objectUrl;
+  video.load();
+  setStatus(`已打开视频：${file.name}`);
+
+  // 上传原始文件到服务端（供截帧/推理），并拿元数据
+  $("videoInfo").textContent = `上传 ${(file.size / 1048576).toFixed(1)} MB…`;
+  const form = new FormData();
+  form.append("video", file);
+  try {
+    const resp = await fetch("/api/upload", { method: "POST", body: form });
+    if (!resp.ok) {
+      const detail = await resp.json().catch(() => ({}));
+      throw new Error(detail.detail || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    if (videoId && videoId !== data.id) deleteUpload(videoId);
+    videoId = data.id;
+    renderMeta(data.metadata);
+    $("videoInfo").textContent = `${data.metadata.width}×${data.metadata.height}, ${data.metadata.fps} fps, ${fmtDuration(data.metadata.duration)}`;
+    setStatus(`已上传并读取元数据（${data.metadata.codec}），可以截帧或推理了`, "ok");
+    // 若本地播放已失败（浏览器不支持编码）但 upload 完成，则走服务端转码预览
+    if (video.networkState === video.NETWORK_NO_SOURCE || video.error) {
+      transcodePreview();
+    }
+  } catch (err) {
+    setStatus(`上传失败：${err.message}。截帧/视频推理不可用，仍可预览。`, "err");
+  }
+}
+
+function deleteUpload(id) {
+  if (!id) return;
+  fetch(`/api/upload/${id}`, { method: "DELETE" }).catch(() => {});
+}
+
+async function transcodePreview() {
+  if (!videoId || previewRetrying) return;
+  previewRetrying = true;
+  $("videoInfo").textContent = "浏览器不支持该编码，正在转码预览…";
+  setStatus("浏览器无法直接播放该视频（如 AVI/MJPEG 编码），正在用 ffmpeg 转码为 H.264 供预览…");
+  try {
+    const form = new FormData();
+    form.append("vid", videoId);
+    const resp = await fetch("/api/preview", { method: "POST", body: form });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(blob);
+    video.src = objectUrl;
+    video.load();
+    setStatus("转码完成，可以预览了。截帧/推理仍基于原始文件。", "ok");
+  } catch (err) {
+    setStatus(`转码预览失败：${err.message}。截帧/视频推理不受影响（服务端直接解码原始文件）。`, "err");
+  }
+}
+
+$("videoFile").addEventListener("change", e => {
+  currentVideoFile = e.target.files[0] || null;
+  previewRetrying = false;
+  handleVideoFile(currentVideoFile);
+});
+
+// ---- 打开图片 ----
+$("imageFile").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => setFrameFromSource(img, img.naturalWidth, img.naturalHeight, "图片");
+  img.src = URL.createObjectURL(file);
+});
+
+$("btnReset").addEventListener("click", () => {
+  if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+  deleteUpload(videoId);
+  videoId = null;
+  currentVideoFile = null;
+  previewRetrying = false;
+  video.removeAttribute("src"); video.load();
+  hasFrame = false; canvas._img = null;
+  drawFrame();
+  clearSelection();
+  $("frameInfo").textContent = "未截取";
+  $("videoInfo").textContent = "未选择视频";
+  $("cutStart").value = "";
+  $("cutEnd").value = "";
+  renderMeta(null);
+  $("answer").textContent = "-";
+  setStatus("已清空");
+});
+
+// ---- 截取当前帧：服务端从原始视频抽原生分辨率帧（不经浏览器解码/转码损失）----
+$("btnCapture").addEventListener("click", async () => {
+  if (!videoId) { setStatus("请先打开一个视频（需等待上传完成）", "err"); return; }
+  if (!isFinite(video.currentTime)) { setStatus("无法确定播放位置", "err"); return; }
+  video.pause();
+  const t = video.currentTime;
+  const btn = $("btnCapture");
+  btn.disabled = true;
+  setStatus(`正在截取 ${t.toFixed(2)}s 处的原生分辨率帧…`);
+  try {
+    const resp = await fetch(`/api/frame?vid=${encodeURIComponent(videoId)}&t=${t.toFixed(3)}`);
+    if (!resp.ok) {
+      const detail = await resp.json().catch(() => ({}));
+      throw new Error(detail.detail || `HTTP ${resp.status}`);
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      setFrameFromSource(img, img.naturalWidth, img.naturalHeight, `原生帧 @ ${t.toFixed(2)}s`);
+    };
+    img.onerror = () => setStatus("截帧失败：无法解码返回的图片", "err");
+    img.src = url;
+  } catch (err) {
+    setStatus(`截帧失败：${err.message}`, "err");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- 视频元数据就绪后显示信息 ----
+video.addEventListener("loadedmetadata", () => {
+  previewRetrying = false;
+  const dur = isFinite(video.duration) ? video.duration.toFixed(1) + "s" : "直播流";
+  $("videoInfo").textContent = `${video.videoWidth}×${video.videoHeight}, ${dur}`;
+});
+video.addEventListener("error", () => {
+  // 本地播放失败。若服务端文件已就绪则转码预览；否则等 upload 完成后由
+  // handleVideoFile 检查 networkState 再触发。
+  if (previewRetrying) return;
+  if (videoId) transcodePreview();
+});
+
+// ---- 整段 / 区间视频推理（与 inference.py 一致，复用已上传文件）----
+let currentVideoFile = null;  // 本地 File 对象（用于预览）
+
+function fmtBytes(b) {
+  if (b == null) return "-";
+  if (b >= 1073741824) return (b / 1073741824).toFixed(2) + " GB";
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + " MB";
+  return (b / 1024).toFixed(1) + " KB";
+}
+function fmtDuration(s) {
+  if (s == null) return "-";
+  const m = Math.floor(s / 60), sec = s - m * 60;
+  return `${m}:${sec.toFixed(1).padStart(4, "0")} (${s.toFixed(2)}s)`;
+}
+function fmtBitrate(bps) {
+  if (bps == null) return "-";
+  if (bps >= 1e6) return (bps / 1e6).toFixed(2) + " Mbps";
+  return (bps / 1e3).toFixed(0) + " kbps";
+}
+
+function renderMeta(meta) {
+  videoMeta = meta;
+  $("metaPanel").style.display = meta ? "block" : "none";
+  if (!meta) return;
+  $("mFilename").textContent = meta.filename || "-";
+  $("mSize").textContent = fmtBytes(meta.size_bytes);
+  $("mContainer").textContent = meta.container || "-";
+  $("mCodec").textContent = meta.codec_long ? `${meta.codec} (${meta.codec_long})` : (meta.codec || "-");
+  $("mRes").textContent = meta.width && meta.height ? `${meta.width} × ${meta.height}` : "-";
+  $("mPixFmt").textContent = meta.pix_fmt || "-";
+  $("mFps").textContent = meta.fps ? `${meta.fps} fps` : "-";
+  $("mFrames").textContent = meta.total_frames != null ? meta.total_frames.toLocaleString() : "-";
+  $("mDuration").textContent = fmtDuration(meta.duration);
+  $("mBitrate").textContent = fmtBitrate(meta.bitrate);
+  $("mAudio").textContent = meta.has_audio ? (meta.audio_codec || "有") : "无";
+  updateCutFrames();
+}
+
+// 区间内帧数（按元数据帧率估算）实时更新
+function updateCutFrames() {
+  const el = $("mCutFrames");
+  if (!videoMeta || !videoMeta.fps) { el.textContent = "-"; return; }
+  const range = getCutRange();
+  if (range === "invalid") { el.textContent = "区间无效"; return; }
+  if (range.start === null && range.end === null) {
+    el.textContent = videoMeta.total_frames != null
+      ? `${videoMeta.total_frames.toLocaleString()}（整段）`
+      : "-";
+    return;
+  }
+  const s = range.start ?? 0;
+  const e = range.end ?? videoMeta.duration;
+  el.textContent = `${Math.round((e - s) * videoMeta.fps).toLocaleString()} 帧`;
+}
+
+// frames 后端不区分编解码引擎，隐藏引擎选择
+$("backend").addEventListener("change", () => {
+  $("codecEngine").disabled = $("backend").value === "frames";
+});
+
+// ---- 推理区间（起点/终点 = 当前播放位置）----
+function getCutRange() {
+  const s = parseFloat($("cutStart").value);
+  const e = parseFloat($("cutEnd").value);
+  const start = isFinite(s) && s >= 0 ? s : null;
+  const end = isFinite(e) && e >= 0 ? e : null;
+  if (start !== null && end !== null && end <= start) return "invalid";
+  return { start, end };
+}
+
+$("btnMarkStart").addEventListener("click", () => {
+  if (!video.duration) { setStatus("请先打开一个视频", "err"); return; }
+  $("cutStart").value = video.currentTime.toFixed(1);
+  updateCutFrames();
+  setStatus(`起点已设为 ${video.currentTime.toFixed(1)}s`);
+});
+$("btnMarkEnd").addEventListener("click", () => {
+  if (!video.duration) { setStatus("请先打开一个视频", "err"); return; }
+  $("cutEnd").value = video.currentTime.toFixed(1);
+  updateCutFrames();
+  setStatus(`终点已设为 ${video.currentTime.toFixed(1)}s`);
+});
+["cutStart", "cutEnd"].forEach(id => $(id).addEventListener("input", updateCutFrames));
+$("btnPreviewCut").addEventListener("click", () => {
+  const range = getCutRange();
+  if (range === "invalid") { setStatus("区间无效：终点需大于起点", "err"); return; }
+  if (range.start === null && range.end === null) { setStatus("未填写区间", "err"); return; }
+  video.currentTime = range.start ?? 0;
+  video.play();
+  if (range.end !== null) {
+    const check = () => {
+      if (video.currentTime >= range.end) { video.pause(); video.removeEventListener("timeupdate", check); }
+    };
+    video.addEventListener("timeupdate", check);
+  }
+  setStatus(`预览区间 [${range.start ?? 0}s, ${range.end ?? "结束"}]`);
+});
+$("btnClearCut").addEventListener("click", () => {
+  $("cutStart").value = "";
+  $("cutEnd").value = "";
+  updateCutFrames();
+  setStatus("已清空区间，将推理整段视频");
+});
+
+$("btnVideoInfer").addEventListener("click", async () => {
+  if (!videoId) { setStatus("请先选择一个视频并等待上传完成", "err"); return; }
+  const prompt = $("prompt").value.trim();
+  if (!prompt) { setStatus("请输入 prompt", "err"); return; }
+  const range = getCutRange();
+  if (range === "invalid") { setStatus("区间无效：终点需大于起点", "err"); return; }
+  const backend = $("backend").value;
+  const codecEngine = backend === "frames" ? "traditional" : $("codecEngine").value;
+  const numFrames = parseInt($("numFrames").value, 10) || 32;
+
+  const btn = $("btnVideoInfer");
+  btn.disabled = true;
+  const cutDesc = (range.start !== null || range.end !== null)
+    ? `区间 [${range.start ?? 0}s, ${range.end ?? "结束"}]` : "整段";
+  setStatus(`${cutDesc} ${backend}/${codecEngine} 推理中…`);
+  $("answer").textContent = "…";
+  const t0 = performance.now();
+  try {
+    const form = new FormData();
+    form.append("vid", videoId);
+    form.append("prompt", prompt);
+    form.append("backend", backend);
+    form.append("codec_engine", codecEngine);
+    form.append("num_frames", numFrames);
+    form.append("max_new_tokens", parseInt($("maxNewTokens").value, 10) || 256);
+    if (range.start !== null) form.append("start", range.start);
+    if (range.end !== null) form.append("end", range.end);
+    const resp = await fetch("/api/infer_video_file", { method: "POST", body: form });
+    if (!resp.ok) {
+      const detail = await resp.json().catch(() => ({}));
+      throw new Error(detail.detail || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    $("answer").textContent = data.answer || "(空结果)";
+    setStatus(`视频推理完成（${cutDesc}，${data.backend}/${data.codec_engine}，${data.num_frames} 帧），耗时 ${((performance.now() - t0) / 1000).toFixed(1)}s`, data.answer ? "ok" : "err");
+  } catch (err) {
+    setStatus(`视频推理失败：${err.message}`, "err");
+    $("answer").textContent = "-";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- 框选（把屏幕坐标换算成 canvas 像素坐标）----
+function canvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / rect.width * canvas.width,
+    y: (e.clientY - rect.top) / rect.height * canvas.height,
+  };
+}
+
+canvas.addEventListener("pointerdown", e => {
+  if (!hasFrame) return;
+  canvas.setPointerCapture(e.pointerId);
+  dragging = true;
+  dragStart = canvasPos(e);
+  selection = { x: dragStart.x, y: dragStart.y, w: 0, h: 0 };
+  updateSelBox();
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  const p = canvasPos(e);
+  selection = {
+    x: Math.min(dragStart.x, p.x),
+    y: Math.min(dragStart.y, p.y),
+    w: Math.abs(p.x - dragStart.x),
+    h: Math.abs(p.y - dragStart.y),
+  };
+  updateSelBox();
+});
+
+canvas.addEventListener("pointerup", () => {
+  if (!dragging) return;
+  dragging = false;
+  // 过小的选区视为误触，忽略
+  if (selection && (selection.w < 8 || selection.h < 8)) clearSelection();
+  else if (selection) {
+    selection.w = Math.round(selection.w);
+    selection.h = Math.round(selection.h);
+    selection.x = Math.round(selection.x);
+    selection.y = Math.round(selection.y);
+    setStatus(`已框选区域 ${selection.w}×${selection.h}，推理将只使用该区域`);
+  }
+});
+
+function updateSelBox() {
+  if (!selection) { selBox.style.display = "none"; return; }
+  const rect = canvas.getBoundingClientRect();
+  selBox.style.display = "block";
+  selBox.style.left = (selection.x / canvas.width * rect.width) + "px";
+  selBox.style.top = (selection.y / canvas.height * rect.height) + "px";
+  selBox.style.width = (selection.w / canvas.width * rect.width) + "px";
+  selBox.style.height = (selection.h / canvas.height * rect.height) + "px";
+}
+
+function clearSelection() {
+  selection = null;
+  selBox.style.display = "none";
+}
+$("btnClearSel").addEventListener("click", () => {
+  clearSelection();
+  setStatus(hasFrame ? "已清除框选，推理将使用整帧" : "尚无截取的帧");
+});
+
+window.addEventListener("resize", updateSelBox);
+
+// ---- 推理 ----
+$("btnInfer").addEventListener("click", async () => {
+  if (!hasFrame) { setStatus("这是单帧推理：请先用「📷 截取当前帧」截一帧，或上传图片；推理整段视频请用左侧的「🎬 视频推理」按钮", "err"); return; }
+  const prompt = $("prompt").value.trim();
+  if (!prompt) { setStatus("请输入 prompt", "err"); return; }
+
+  // 有框选 → 导出局部；否则导出整帧
+  let dataUrl;
+  if (selection && selection.w > 0 && selection.h > 0) {
+    const out = document.createElement("canvas");
+    out.width = selection.w;
+    out.height = selection.h;
+    out.getContext("2d").drawImage(canvas, selection.x, selection.y, selection.w, selection.h, 0, 0, selection.w, selection.h);
+    dataUrl = out.toDataURL("image/jpeg", 0.92);
+  } else {
+    dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+  }
+
+  const btn = $("btnInfer");
+  btn.disabled = true;
+  setStatus("推理中，请稍候…");
+  $("answer").textContent = "…";
+  const t0 = performance.now();
+  try {
+    const resp = await fetch("/api/infer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: dataUrl,
+        prompt,
+        max_new_tokens: parseInt($("maxNewTokens").value, 10) || 256,
+      }),
+    });
+    if (!resp.ok) {
+      const detail = await resp.json().catch(() => ({}));
+      throw new Error(detail.detail || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    $("answer").textContent = data.answer || "(空结果)";
+    setStatus(`完成，耗时 ${((performance.now() - t0) / 1000).toFixed(1)}s`, "ok");
+  } catch (err) {
+    setStatus(`推理失败：${err.message}`, "err");
+    $("answer").textContent = "-";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+drawFrame();
+</script>
+</body>
+</html>

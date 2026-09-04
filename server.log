@@ -1,0 +1,44 @@
+INFO:     Started server process [16233]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:38630 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38638 - "GET /api/health HTTP/1.1" 200 OK
+[upload] 'screen_record.avi' -> dc2316477b0e4df186924d085dc22e31 (2560x1600)
+INFO:     127.0.0.1:38630 - "POST /api/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38630 - "POST /api/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38630 - "GET /api/frame?vid=dc2316477b0e4df186924d085dc22e31&t=0.000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33596 - "GET /api/frame?vid=dc2316477b0e4df186924d085dc22e31&t=1.898 HTTP/1.1" 200 OK
+[upload] 'soccer-broadcast.mp4' -> 7db79447956c4007a7b16d0ee61e9216 (960x540)
+INFO:     127.0.0.1:41380 - "POST /api/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41394 - "GET /api/frame?vid=7db79447956c4007a7b16d0ee61e9216&t=8 HTTP/1.1" 200 OK
+[Mage-VL] loading model from /home/eddie/whm/models/Mage-VL ...
+Loading weights:   0%|          | 0/696 [00:00<?, ?it/s]Loading weights:   0%|          | 1/696 [00:00<01:17,  8.93it/s]Loading weights:   0%|          | 2/696 [00:00<01:57,  5.88it/s]Loading weights:   2%|▏         | 16/696 [00:00<00:13, 50.07it/s]Loading weights:   5%|▍         | 32/696 [00:00<00:07, 83.49it/s]Loading weights:   7%|▋         | 48/696 [00:00<00:06, 101.08it/s]Loading weights:   9%|▊         | 60/696 [00:00<00:06, 103.73it/s]Loading weights:  10%|█         | 72/696 [00:00<00:05, 105.17it/s]Loading weights:  12%|█▎        | 87/696 [00:00<00:05, 117.73it/s]Loading weights:  15%|█▍        | 101/696 [00:01<00:04, 123.84it/s]Loading weights:  16%|█▋        | 114/696 [00:01<00:04, 121.70it/s]Loading weights:  18%|█▊        | 127/696 [00:01<00:05, 112.99it/s]Loading weights:  20%|██        | 142/696 [00:01<00:04, 122.88it/s]Loading weights:  23%|██▎       | 158/696 [00:01<00:04, 126.65it/s]Loading weights:  25%|██▍       | 171/696 [00:01<00:04, 117.56it/s]Loading weights:  27%|██▋       | 186/696 [00:01<00:04, 125.57it/s]Loading weights:  29%|██▊       | 200/696 [00:01<00:03, 128.96it/s]Loading weights:  31%|███       | 214/696 [00:02<00:03, 120.70it/s]Loading weights:  33%|███▎      | 227/696 [00:02<00:03, 119.16it/s]Loading weights:  35%|███▍      | 241/696 [00:02<00:03, 124.47it/s]Loading weights:  37%|███▋      | 255/696 [00:02<00:03, 128.19it/s]Loading weights:  39%|███▊      | 268/696 [00:02<00:03, 124.41it/s]Loading weights:  40%|████      | 281/696 [00:02<00:03, 115.19it/s]Loading weights:  43%|████▎     | 296/696 [00:02<00:03, 123.91it/s]Loading weights:  45%|████▍     | 310/696 [00:02<00:03, 127.83it/s]Loading weights:  46%|████▋     | 323/696 [00:02<00:02, 124.43it/s]Loading weights:  48%|████▊     | 336/696 [00:03<00:03, 115.04it/s]Loading weights:  50%|█████     | 351/696 [00:03<00:02, 123.98it/s]Loading weights:  52%|█████▏    | 364/696 [00:03<00:02, 125.19it/s]Loading weights:  54%|█████▍    | 378/696 [00:03<00:02, 124.48it/s]Loading weights:  56%|█████▌    | 391/696 [00:03<00:02, 115.16it/s]Loading weights:  67%|██████▋   | 465/696 [00:03<00:00, 282.12it/s]Loading weights:  79%|███████▉  | 550/696 [00:03<00:00, 438.02it/s]Loading weights:  91%|█████████▏| 636/696 [00:03<00:00, 554.78it/s]Loading weights: 100%|██████████| 696/696 [00:03<00:00, 180.56it/s]
+[Mage-VL] model ready
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+[transformers] The remote code model you are currently using seems to expect `cache_position`. This arg has been removed from the Transformers library, and will stop being created in `generate` even for remote code models in a future release. Please open a PR on the remote code hub repo to remove any usage of `cache_position`.
+INFO:     127.0.0.1:59698 - "POST /api/infer HTTP/1.1" 200 OK
+[upload] 'soccer-broadcast.mp4' -> ce237ac4bce545bba031ac23fb11b6c0 (960x540)
+INFO:     127.0.0.1:36066 - "POST /api/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36066 - "DELETE /api/upload/dc2316477b0e4df186924d085dc22e31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59562 - "GET /api/frame?vid=ce237ac4bce545bba031ac23fb11b6c0&t=5.393 HTTP/1.1" 200 OK
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+INFO:     127.0.0.1:59566 - "POST /api/infer HTTP/1.1" 200 OK
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+INFO:     127.0.0.1:39680 - "POST /api/infer HTTP/1.1" 200 OK
+/home/eddie/.cache/huggingface/modules/transformers_modules/Mage_hyphen_VL/46f08ded6e45c861/codec_video_processing_mage_vl.py:499: UserWarning: [codec] video '/home/eddie/whm/models/Mage-VL/video-chat/uploads/95d1201256974be0a82429cf49c6ace0.mp4' has 99 frames; with group_size=32, images_per_group=4 this yields ~12 canvas(es) instead of the requested target_canvas=32. Inference will proceed with the smaller canvas count.
+  _maybe_warn_short_video(video_url, cfg)
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+[infer_video_file] vid=ce237ac4… backend=codec/neural cut=9.7-12.0s num_frames=32 -> '视频中，一名男子站在体育场内，手持带有BBC Sport标志的麦克风，似乎正在报道或评论一场足球比赛。体育场内座无虚席，观众们正在观看比赛。体育场的看台上有“ATLANTA”和“FEDERATION OF 2023”等字样，表明这可能是一场重要的国际赛事。'
+INFO:     127.0.0.1:58704 - "POST /api/infer_video_file HTTP/1.1" 200 OK
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+[infer_video_file] vid=ce237ac4… backend=codec/neural num_frames=32 -> '视频中，一名身穿黑色衬衫的男子手持带有BBC Sport标志的黄色麦克风，站在一个体育场内。他身后是观众席，观众们穿着红白相间的服装，营造出热烈的氛围。这名男子似乎正在播报或评论一场足球比赛，因为背景中可以看到足球场和球员。'
+INFO:     127.0.0.1:58704 - "POST /api/infer_video_file HTTP/1.1" 200 OK
+/home/eddie/.cache/huggingface/modules/transformers_modules/Mage_hyphen_VL/46f08ded6e45c861/codec_video_processing_mage_vl.py:499: UserWarning: [codec] video '/home/eddie/whm/models/Mage-VL/video-chat/uploads/ce237ac4bce545bba031ac23fb11b6c0.mp4' has 720 frames; with group_size=32, images_per_group=4 this yields ~88 canvas(es) instead of the requested target_canvas=500. Inference will proceed with the smaller canvas count.
+  _maybe_warn_short_video(video_url, cfg)
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+[infer_video_file] vid=ce237ac4… backend=codec/neural num_frames=500 -> '视频中展示了四名体育评论员在体育场内进行足球比赛分析的场景。他们站在一个带有BBC Sport标志的桌子旁，每人手持带有BBC Sport标志的麦克风。背景是座无虚席的体育场，观众们正在观看比赛。评论员们似乎正在进行讨论，可能在分析比赛中的关键时刻或球员表现。'
+INFO:     127.0.0.1:50464 - "POST /api/infer_video_file HTTP/1.1" 200 OK
+[transformers] Setting `pad_token_id` to `eos_token_id`:151645 for open-end generation.
+[infer_video_file] vid=ce237ac4… backend=codec/neural num_frames=500 -> 'The video captures a live sports broadcast from BBC Sport, featuring a panel of four commentators discussing a football match between England and Argentina. The commentators are positioned at a studio'
+INFO:     127.0.0.1:40372 - "POST /api/infer_video_file HTTP/1.1" 200 OK
