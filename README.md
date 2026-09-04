@@ -18,7 +18,7 @@ conda run -n mage_vl python app.py --model .. --host 0.0.0.0 --port 8000
 
 
 
-![](.\demo.png)
+![](https://github.com/nudt-eddie/Mage-VL-VideoChat/blob/main/demo.png)
 
 ## 功能
 
